@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "adaptive_swim_pde"
+version = "0.0.1"
+authors = [
+  { name="Ngoc Kim Ngan Nguyen" }
+]
+description = "SWIM neural networks with adaptive activation functions for solving PDEs."
+readme = "README.md"
+requires-python = ">=3.8"
+dynamic = ["dependencies"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements.txt"]}
