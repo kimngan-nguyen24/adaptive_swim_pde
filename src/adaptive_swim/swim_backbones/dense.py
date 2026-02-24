@@ -57,6 +57,8 @@ class Dense(Base):
     idx_to: npt.NDArray | None = None
 
     torch_activation_cls: type[TorchActivation] | None = None
+    k: int = 20
+    s: float = 0.5 * np.log(3)
 
     def __post_init__(self) -> None:  # noqa: D105
         super().__post_init__()
@@ -69,11 +71,14 @@ class Dense(Base):
                 self.parameter_sampler = self.sample_parameters_tanh
             elif self.parameter_sampler == "random":
                 self.parameter_sampler = self.sample_parameters_randomly
+            elif self.parameter_sampler == "rational":
+                self.parameter_sampler = self.sample_parameters_rational
             else:
                 msg = f"Unknown parameter sampler {self.parameter_sampler}."
                 raise ValueError(msg)
         
         self.adaptive_solver = AdaptiveSolver()
+        self.a_params = np.ones(self.layer_width)
 
     def fit(self, x: npt.NDArray, y: npt.NDArray = None) -> Dense:
         """Layer fitting procedure.
@@ -112,22 +117,38 @@ class Dense(Base):
         (self.input_shape, self.output_shape) = weights.shape
 
         if self.torch_activation_cls is not None:
-            if y is None:
+            y = np.squeeze(y)
+            if y is None or y.ndim != 1:
                 msg = (
                     "Cannot fit adaptive activations without "
-                    "target (y) values."
+                    "data (x) or target (y) values."
                 )
                 raise ValueError(msg)
-            
-            print(x.shape, y.shape, weights.shape, biases.shape)
-
             self._model = self.torch_activation_cls(n_params=self.layer_width)
+            self.fit_adaptive(x, y)
+        return self
 
+    def fit_adaptive(self, x: npt.NDArray, y: npt.NDArray) -> Dense:
+        """Layer fitting procedure using adaptive solver.
+
+        For the passed data arrays x and y this function fits and
+        stores the weight and bias attributes using an adaptive solver.
+        Sample first, then fit the activation function.
+
+        Args:
+            x (npt.NDArray): Input to the layer of shape (N x ...).
+                The input is reshaped to (N x D_in).
+            y (npt.NDArray, optional): The target values of shape (N,).
+        Returns:
+            Dense
+        """
+
+        if self._model is not None:
             # Generate iterpolation points for adaptive activations
             x_inter = compute_interpolation_points(
                 x_start=x[self.idx_from],
                 x_end=x[self.idx_to],
-                k=20, # TODO: what should k be?
+                k=self.k, # TODO: what should k be?
             )  # shape (layer_width, k, d)
             
             # Find nearest real x points and corresponding y value for each interpolation point
@@ -138,7 +159,7 @@ class Dense(Base):
 
             x_inter = torch.from_numpy(x[nearest_indices])  # shape (layer_width, k, D_in)
             y_inter = torch.from_numpy(y[nearest_indices])  # shape (layer_width, k, D_out)
-            y_inter = y_inter.mean(dim=2, keepdim=True)  # TODO: shape (layer_width, k, D_out) -> (layer_width, k)
+            #y_inter = y_inter.mean(dim=2, keepdim=True)  # TODO: shape (layer_width, k, D_out) -> (layer_width, k)
             w = torch.from_numpy(self.weights).reshape(self.layer_width, -1)  # shape (layer_width, D_in)
             b = torch.from_numpy(self.biases).reshape(self.layer_width, -1)  # shape (layer_width, 1)
 
@@ -150,10 +171,47 @@ class Dense(Base):
                 w=w,
                 b=b,
             )
-            self.a_params = params.numpy().T  # shape (1, layer_width)
-            print(self.a_params)
-
+            self.a_params = np.expand_dims(params.numpy().squeeze(), axis=0)  # shape (1, layer_width, *)
+            #print(self.a_params)
         return self
+
+    def sample_parameters_rational(
+        self,
+        x: npt.NDArray,
+        y: npt.NDArray,
+        rng: np.random.Generator,
+    ) -> tuple[npt.NDArray, npt.NDArray, npt.NDArray, npt.NDArray]:
+        """Sample parameters for tanh activation.
+
+        Args:
+            x (npt.NDArray): Input to the layer of shape (N x ...).
+                The input is reshaped to (N x D_in).
+            y (npt.NDArray, optional): The target values of shape (N,)
+                or (N x D_target). Default is None.
+            rng (np.random.Generator): Random number generator.
+
+        Returns:
+            npt.NDArray: Sampled weights.
+            npt.NDArray: Sampled biases.
+            npt.NDArray: Indices for first members in ordered pairs of
+            sampled datapoints used to construct the weights and biases.
+            npt.NDArray: Indices for second members in ordered pairs of
+            sampled datapoints used to construct the weights and biases.
+
+        """
+        # Define scaling hyperparameter (called s2 in Bolager, 2023).
+        # scale = 0.5
+        scale = self.s
+
+        # Sample relevant points and retain distances,
+        # direction and indices.
+        directions, dists, idx_from, idx_to = self.sample_parameters(x, y, rng)
+
+        # Construct weights and biases.
+        weights = (2 * scale * directions / dists).T
+        biases = -np.sum(x[idx_from, :] * weights.T, axis=-1).reshape(1, -1) - scale
+
+        return weights, biases, idx_from, idx_to
 
     # Copied from swimnetworks.Dense. Do not change.
     def sample_parameters_tanh(
@@ -181,8 +239,8 @@ class Dense(Base):
 
         """
         # Define scaling hyperparameter (called s2 in Bolager, 2023).
-        # scale = 0.5 * (np.log(1 + 1 / 2) - np.log(1 - 1 / 2))
-        scale = 4.0
+        scale = 0.5 * (np.log(1 + 1 / 2) - np.log(1 - 1 / 2))
+        #scale = 1.0
 
         # Sample relevant points and retain distances,
         # direction and indices.

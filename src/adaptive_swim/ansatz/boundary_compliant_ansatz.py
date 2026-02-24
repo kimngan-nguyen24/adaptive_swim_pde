@@ -34,6 +34,8 @@ class BoundaryCompliantAnsatz(Ansatz):
         Random seed to be used in all processes that require randomness.
     boundary_condition: BoundaryCondition
         A boundary condition to satisfy by the outer functions.
+    u0: Callable[[npt.ArrayLike], npt.ArrayLike]
+        Solution at time t=0.
     target_fn: str | Callable
         Target values on the domain interior for constructing the outer basis.
     domain_margin_percent: float
@@ -53,10 +55,13 @@ class BoundaryCompliantAnsatz(Ansatz):
 
     boundary_condition: BoundaryCondition
     target_fn: str | Callable[[npt.ArrayLike], npt.ArrayLike] = "tanh" # TODO: check here
+    initial_condition: Callable[[npt.ArrayLike], npt.ArrayLike] | None = None
     domain_margin_percent: float = 0
     regularization_scale: float = 1e-13
     _inner_ansatz: BasicAnsatz = None
     _linear: Linear = None
+    k: int = 20
+    s: float = 0.5 * np.log(3)
 
     def __post_init__(self):
         if self.n_inner_basis is None:
@@ -70,6 +75,8 @@ class BoundaryCompliantAnsatz(Ansatz):
             n_basis=self.n_inner_basis,
             parameter_sampler=self.parameter_sampler,
             random_seed=ansatz_seed,
+            k=self.k,
+            s=self.s,
         )
         self._linear = Linear(regularization_scale=self.regularization_scale)
 
@@ -145,7 +152,11 @@ class BoundaryCompliantAnsatz(Ansatz):
 
         # Fit the inner ansatz to a function defined by 'target_fn'
         target = target_fn(domain.interior_points)
-        self._inner_ansatz.fit(domain, target)
+        if target.shape[1] != 1 and self.initial_condition is not None:
+            initial_target = self.initial_condition(domain.interior_points)
+            self._inner_ansatz.fit(domain, initial_target)
+        else:
+            self._inner_ansatz.fit(domain, target)
 
         # Evaluate the inner ansatz on core interior points
         # and the boundary condition on boundary points.

@@ -189,6 +189,20 @@ class Base(BaseEstimator, ABC):
             Base: Returns the class instance, i.e., self.
 
         """
+    
+    @abstractmethod
+    def fit_adaptive(self, x: npt.NDArray, y: npt.NDArray) -> Base:
+        """Abstract method for fitting adaptive parameters of the layer.
+
+        Args:
+            x (npt.NDArray): Input to the layer of shape (N x ...).
+                The input is reshaped to (N x D_in).
+            y (npt.NDArray): The target values of shape (N,)
+                or (N x D_target).
+        Returns:
+            Base: Returns the class instance, i.e., self.
+        """
+
 
     def transform(self, x: npt.NDArray, _: npt.NDArray | None = None) -> npt.NDArray:
         """Use weights, biases, and activation function to transform x.

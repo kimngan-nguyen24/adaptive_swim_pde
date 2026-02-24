@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import numpy.typing as npt
-
+import pandas
 
 def compute_metrics(
     u_pred: npt.ArrayLike, u_exact: npt.ArrayLike
@@ -46,3 +46,19 @@ def plot_results(
         ax.set_title(f"$t = {t_eval[idx]:.3f}$")
 
     return fig
+
+
+def filter_results(df: pandas.DataFrame, activation, n_inner_basis):
+    filtered = df[df["activation"] == activation]
+    rmse = []
+    rel_l2 = []
+    for n in n_inner_basis:
+        subset = filtered[filtered["n_inner"] == n]
+        # Minimum
+        min_rmse = subset["rmse"].min()
+        min_rel_l2 = subset["rel_l2"].min()
+        # Row of minimum
+        print(subset.loc[subset["rmse"].idxmin()])
+        rmse.append(min_rmse)
+        rel_l2.append(min_rel_l2)
+    return np.array(rmse), np.array(rel_l2)

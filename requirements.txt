@@ -5,3 +5,4 @@ swimpde @ git+https://gitlab.com/fd-research/swimpde.git
 alphashape>=1.3.1
 matplotlib>=3.7.1
 torch>=2.0.1
+pandas>=3.0.1

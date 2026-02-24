@@ -6,8 +6,8 @@ import torch.nn as nn
 class AdaptiveSolver:
     optimizer: str = "Adam"
     loss_function: str = "MSE"
-    learning_rate: float = 3e-4 # old: 1e-3 doesn't work well
-    regularization_scale: float = 1e-6
+    learning_rate: float = 3e-4  # old: 1e-3 doesn't work well
+    regularization_scale: float = 1e-12
     max_epochs: int = 1000
 
     tolerance: float = 1e-6
@@ -105,7 +105,7 @@ class AdaptiveSolver:
             model.train()
             optimizer.zero_grad()
             outputs = model(x)
-            loss = self.loss_function(outputs, y) # + self.regularization_scale * torch.sum(torch.square(model.a_params))
+            loss = self.loss_function(outputs, y) + self.regularization_scale * torch.sum(torch.square(model.a_params))
             loss.backward()
             optimizer.step()
 

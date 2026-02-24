@@ -76,10 +76,10 @@ class TorchActivation(nn.Module, ABC):
     """
 
     name: str = "base"
+    a_params: torch.Tensor
 
-    def __init__(self, n_params):
+    def __init__(self):
         super().__init__()
-        self.a_params = nn.Parameter(torch.ones(n_params, 1))
 
     @abstractmethod
     def forward(self, x: torch.Tensor) -> torch.Tensor:

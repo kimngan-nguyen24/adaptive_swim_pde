@@ -28,13 +28,13 @@ class Adaptive_Tanh(Activation):
         sinh = np.sinh(x)
         match order:
             case 1:
-                return 1 / cosh**2
+                return 1 / cosh**2 * a_params
             case 2:
-                return -2 * sinh / cosh**3
+                return -2 * sinh / cosh**3 * a_params**2
             case 3:
-                return 4 * tanh**2 / cosh**2 - 2 * cosh**4
+                return (4 * tanh**2 / cosh**2 - 2 * cosh**4) * a_params**3
             case 4:
-                return 16 * sinh / cosh**5 - 8 * sinh**3 / cosh**5
+                return (16 * sinh / cosh**5 - 8 * sinh**3 / cosh**5) * a_params**4
             case _:
                 raise ValueError(
                     f"Derivative of order={order} " "is not implemented for 'tanh'."
@@ -43,6 +43,10 @@ class Adaptive_Tanh(Activation):
 
 class Torch_Adaptive_Tanh(TorchActivation):
     name = "a_tanh"
+
+    def __init__(self, n_params):
+        super().__init__()
+        self.a_params = nn.Parameter(torch.ones(n_params, 1))
 
     def forward(self, x):
         #print(x.shape, self.a_params.shape)

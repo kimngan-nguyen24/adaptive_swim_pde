@@ -38,6 +38,8 @@ class BasicAnsatz(Ansatz):
     parameter_sampler: str | Callable | None = None
     random_seed: int = 1
     torch_activation_cls: str | type[TorchActivation] | None = None
+    k: int = 20
+    s: int = 0.5 * np.log(3)
 
     _layer: Dense | None = None
 
@@ -64,6 +66,8 @@ class BasicAnsatz(Ansatz):
             parameter_sampler=self.parameter_sampler,
             random_seed=self.random_seed,
             prune_duplicates=False,
+            k=self.k,
+            s=self.s,
         )
 
         self.n_outputs = self.n_basis
