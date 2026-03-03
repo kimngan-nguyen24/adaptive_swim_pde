@@ -77,12 +77,12 @@ class BoundaryCompliantAnsatz(Ansatz):
             random_seed=ansatz_seed,
             k=self.k,
             s=self.s,
+            initial_condition=self.initial_condition,
         )
         self._linear = Linear(regularization_scale=self.regularization_scale)
 
         # Set the target function for the inner ansatz.
         if isinstance(self.target_fn, str):
-            # TODO: check here
             self.target_fn = partial(
                 get_dense_layer_target,
                 n_targets=self.n_basis,
@@ -179,6 +179,8 @@ class BoundaryCompliantAnsatz(Ansatz):
             core_output_target = target[core_mask]
         elif target.shape[1] == 1 and self.n_basis == self.n_inner_basis:
             core_output_target = core_inner_output
+        elif target.shape[1] == 1 and callable(self.target_fn):
+            core_output_target = self.target_fn(domain.interior_points)[core_mask]
         else:
             raise ValueError(
                 f"Cannot use the target for {self.n_basis=}: " f"{target.shape[1]=}."

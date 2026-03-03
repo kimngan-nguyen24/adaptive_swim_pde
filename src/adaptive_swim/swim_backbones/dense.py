@@ -58,7 +58,7 @@ class Dense(Base):
 
     torch_activation_cls: type[TorchActivation] | None = None
     k: int = 20
-    s: float = 0.5 * np.log(3)
+    s: float = 0.5
 
     def __post_init__(self) -> None:  # noqa: D105
         super().__post_init__()
@@ -148,7 +148,7 @@ class Dense(Base):
             x_inter = compute_interpolation_points(
                 x_start=x[self.idx_from],
                 x_end=x[self.idx_to],
-                k=self.k, # TODO: what should k be?
+                k=self.k,
             )  # shape (layer_width, k, d)
             
             # Find nearest real x points and corresponding y value for each interpolation point
@@ -158,8 +158,7 @@ class Dense(Base):
             )  # shape (layer_width, k)
 
             x_inter = torch.from_numpy(x[nearest_indices])  # shape (layer_width, k, D_in)
-            y_inter = torch.from_numpy(y[nearest_indices])  # shape (layer_width, k, D_out)
-            #y_inter = y_inter.mean(dim=2, keepdim=True)  # TODO: shape (layer_width, k, D_out) -> (layer_width, k)
+            y_inter = torch.from_numpy(y[nearest_indices])  # shape (layer_width, k, 1)
             w = torch.from_numpy(self.weights).reshape(self.layer_width, -1)  # shape (layer_width, D_in)
             b = torch.from_numpy(self.biases).reshape(self.layer_width, -1)  # shape (layer_width, 1)
 
@@ -240,7 +239,6 @@ class Dense(Base):
         """
         # Define scaling hyperparameter (called s2 in Bolager, 2023).
         scale = 0.5 * (np.log(1 + 1 / 2) - np.log(1 - 1 / 2))
-        #scale = 1.0
 
         # Sample relevant points and retain distances,
         # direction and indices.

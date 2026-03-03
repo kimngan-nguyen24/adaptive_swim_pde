@@ -11,6 +11,7 @@ from adaptive_swim.activation import Activation, TorchActivation, get_activation
 from adaptive_swim.swim_backbones import Dense
 
 from .utils import get_order
+from sklearn.pipeline import Pipeline
 
 
 @dataclass(kw_only=True)
@@ -39,7 +40,9 @@ class BasicAnsatz(Ansatz):
     random_seed: int = 1
     torch_activation_cls: str | type[TorchActivation] | None = None
     k: int = 20
-    s: int = 0.5 * np.log(3)
+    s: float = 0.5 * np.log(3)
+    initial_condition: Callable[[npt.ArrayLike], npt.ArrayLike] | None = None
+    repetition_scaler: int = 1
 
     _layer: Dense | None = None
 
@@ -68,6 +71,7 @@ class BasicAnsatz(Ansatz):
             prune_duplicates=False,
             k=self.k,
             s=self.s,
+            repetition_scaler=self.repetition_scaler,
         )
 
         self.n_outputs = self.n_basis
@@ -122,7 +126,10 @@ class BasicAnsatz(Ansatz):
             )
 
         if target_fn is None:
-            target = np.zeros((domain.interior_points.shape[0], self.n_basis))
+            if callable(self.initial_condition):
+                target = self.initial_condition(domain.interior_points)
+            else:
+                target = np.zeros((domain.interior_points.shape[0], self.n_basis))
         elif callable(target_fn):
             target = target_fn(domain.interior_points)
         else:

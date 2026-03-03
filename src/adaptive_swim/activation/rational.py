@@ -175,7 +175,7 @@ class Rational(Activation):
 
         return np.concatenate([grad_p, grad_q], axis=2)  # (N,M,p+q)
 
-    def _dx(self, x: npt.ArrayLike, a_params: npt.ArrayLike, order: int = 0) -> np.ndarray:
+    def _dx(self, x: npt.ArrayLike, a_params: npt.ArrayLike, order: int = 1) -> np.ndarray:
         """
         x-derivatives up to 4th order, shape (N, M).
         """
@@ -258,8 +258,5 @@ class Torch_Rational(TorchActivation):
         ) ** 2  # (N, d)
 
         res = numerator / denominator
-
-        if res.shape[0] == 1:
-            res = res.squeeze(0)  # (d,)
 
         return res  # (N, d)
